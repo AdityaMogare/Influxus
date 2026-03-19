@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+greenlet
+alembic
+bullmq
+redis
+pydantic
+pydantic-settings
