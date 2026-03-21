@@ -14,7 +14,47 @@ export interface Transaction {
     id: number;
     description: string;
     status: string;
+    category: string | null;
     created_at: string;
+}
+
+export interface Account {
+    id: number;
+    name: string;
+    currency: string;
+    balance: string;
+    account_type: string;
+    parent_account_id: number | null;
+    jar_name: string | null;
+}
+
+export interface BudgetStatus {
+    category: string;
+    spent: string;
+    limit: string;
+    remaining: string;
+}
+
+export interface Asset {
+    symbol: string;
+    name: string;
+    current_price: string;
+}
+
+export interface Portfolio {
+    holdings: {
+        symbol: string;
+        name: string;
+        units: string;
+        cost_basis: string;
+        current_price: string;
+        market_value: string;
+        gain_loss: string;
+        gain_pct: string;
+    }[];
+    total_value: string;
+    total_cost: string;
+    total_gain: string;
 }
 
 export const api = {
@@ -24,22 +64,13 @@ export const api = {
     return res.json();
   },
   
-  transfer: async (req: { 
-    from_account_id: number; 
-    to_account_id: number; 
-    amount: number; 
-    currency: string; 
-    description: string; 
-    idempotency_key: string 
-  }) => {
+  transfer: async (req: { from_account_id: number; to_account_id: number; amount: number; currency: string; description: string; idempotency_key: string }) => {
     const { idempotency_key, ...body } = req;
     const res = await fetch(`${BASE_URL}/transfer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotency_key },
       body: JSON.stringify(body),
     });
-    
-    // We can also check if res.ok is false, but fastapi might return 400 with a detail
     if (!res.ok) {
         let err = await res.json().catch(() => null);
         throw new Error(err?.detail || 'Transfer failed');
@@ -56,6 +87,73 @@ export const api = {
   getTransactions: async (): Promise<Transaction[]> => {
     const res = await fetch(`${BASE_URL}/transactions`);
     if (!res.ok) throw new Error('Failed to fetch transactions');
+    return res.json();
+  },
+
+  // ── Phase 6 Jars ──
+  getAccounts: async (): Promise<Account[]> => {
+    const res = await fetch(`${BASE_URL}/accounts`);
+    if (!res.ok) throw new Error('Failed to fetch accounts');
+    return res.json();
+  },
+  createJar: async (parent_account_id: number, jar_name: string, currency: string = "USD") => {
+    const res = await fetch(`${BASE_URL}/jars`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_account_id, jar_name, currency }),
+    });
+    if (!res.ok) { let err = await res.json().catch(()=>null); throw new Error(err?.detail || 'Failed'); }
+    return res.json();
+  },
+  moveJar: async (checking_account_id: number, jar_account_id: number, amount: number, direction: 'to_jar' | 'from_jar') => {
+    const res = await fetch(`${BASE_URL}/jars/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checking_account_id, jar_account_id, amount, direction }),
+    });
+    if (!res.ok) { let err = await res.json().catch(()=>null); throw new Error(err?.detail || 'Failed'); }
+    return res.json();
+  },
+  getJars: async (account_id: number): Promise<Account[]> => {
+    const res = await fetch(`${BASE_URL}/accounts/${account_id}/jars`);
+    if (!res.ok) throw new Error('Failed to fetch jars');
+    return res.json();
+  },
+
+  // ── Phase 7 Budgets ──
+  getBudgetStatus: async (account_id: number): Promise<BudgetStatus[]> => {
+    const res = await fetch(`${BASE_URL}/budgets/status?account_id=${account_id}`);
+    if (!res.ok) throw new Error('Failed to fetch budgets');
+    return res.json();
+  },
+  setBudget: async (account_id: number, category_name: string, monthly_limit: number) => {
+    const res = await fetch(`${BASE_URL}/budgets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id, category_name, monthly_limit }),
+    });
+    if (!res.ok) throw new Error('Failed');
+    return res.json();
+  },
+
+  // ── Phase 8 Assets ──
+  getAssets: async (): Promise<Asset[]> => {
+    const res = await fetch(`${BASE_URL}/assets`);
+    if (!res.ok) throw new Error('Failed to fetch assets');
+    return res.json();
+  },
+  buyAsset: async (checking_account_id: number, symbol: string, amount: number) => {
+    const res = await fetch(`${BASE_URL}/assets/buy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checking_account_id, symbol, amount }),
+    });
+    if (!res.ok) { let err = await res.json().catch(()=>null); throw new Error(err?.detail || 'Failed to buy'); }
+    return res.json();
+  },
+  getPortfolio: async (account_id: number): Promise<Portfolio> => {
+    const res = await fetch(`${BASE_URL}/portfolio?account_id=${account_id}`);
+    if (!res.ok) throw new Error('Failed to fetch portfolio');
     return res.json();
   }
 };
