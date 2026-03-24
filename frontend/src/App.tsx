@@ -5,16 +5,18 @@ import TransactionHistory from './components/TransactionHistory.tsx'
 import JarsPanel from './components/JarsPanel.tsx'
 import BudgetDashboard from './components/BudgetDashboard.tsx'
 import PortfolioView from './components/PortfolioView.tsx'
+import AuditLog from './components/AuditLog.tsx'
 
 function App() {
   const [activeTxId, setActiveTxId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'send' | 'jars' | 'budget' | 'invest'>('send');
+  const [activeTab, setActiveTab] = useState<'send' | 'jars' | 'budget' | 'invest' | 'audit'>('send');
 
   const tabs = [
     { id: 'send', label: 'Send Money' },
     { id: 'jars', label: 'Jars' },
     { id: 'budget', label: 'Budgeting' },
-    { id: 'invest', label: 'Invest' }
+    { id: 'invest', label: 'Invest' },
+    { id: 'audit', label: 'Audit Log' }
   ];
 
   return (
@@ -82,6 +84,12 @@ function App() {
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Unit-Based Accounting</h3>
                 <p>This transforms the ledger from tracking Cents to tracking Units. Watch real-time market fluctuations update your portfolio via the background Python worker.</p>
              </div>
+           </div>
+        )}
+
+        {activeTab === 'audit' && (
+           <div className="w-full max-w-5xl mx-auto">
+             <AuditLog checkingAccountId={1} />
            </div>
         )}
       </main>

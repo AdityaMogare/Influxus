@@ -239,3 +239,52 @@ async def get_portfolio(account_id: int, db: AsyncSession = Depends(get_db)):
         return holdings
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+# ──────────────────────── Reconciliation & FinOps ────────────────────────
+
+class ForceReconcileRequest(BaseModel):
+    exception_id: int
+    checking_account_id: int
+
+@app.post("/reconcile/run")
+async def run_recon_job(db: AsyncSession = Depends(get_db)):
+    from statement_generator import generate_simulated_bank_statement
+    from reconciliation_service import run_reconciliation
+    statement = await generate_simulated_bank_statement()
+    report = await run_reconciliation(db, statement)
+    return {"status": "success", "report_id": report.id, "drift": str(report.total_drift), "report_status": report.status}
+
+@app.get("/reconcile/reports")
+async def get_recon_reports(db: AsyncSession = Depends(get_db)):
+    from models import ReconciliationReport, ReconciliationException
+    result = await db.execute(select(ReconciliationReport).order_by(ReconciliationReport.report_date.desc()))
+    reports = result.scalars().all()
+    out = []
+    for r in reports:
+        exc_q = await db.execute(select(ReconciliationException).where(ReconciliationException.report_id == r.id))
+        exceptions = []
+        for e in exc_q.scalars().all():
+            exceptions.append({
+                "id": e.id, 
+                "transaction_id": e.transaction_id, 
+                "bank_reference": e.bank_reference, 
+                "mismatch_type": e.mismatch_type, 
+                "resolved": e.resolved
+            })
+        out.append({
+            "id": r.id, 
+            "report_date": r.report_date.isoformat(), 
+            "total_drift": str(r.total_drift), 
+            "status": r.status,
+            "exceptions": exceptions
+        })
+    return out
+
+@app.post("/reconcile/force")
+async def force_reconcile(req: ForceReconcileRequest, db: AsyncSession = Depends(get_db)):
+    from reconciliation_service import force_reconcile_exception
+    try:
+        adj_tx = await force_reconcile_exception(db, req.exception_id, req.checking_account_id)
+        return {"status": "resolved", "adjustment_transaction_id": adj_tx.id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
