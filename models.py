@@ -25,6 +25,7 @@ class LedgerTransaction(Base):
     description = Column(String)
     status = Column(String, default="PENDING")
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)  # Phase 7
+    reconciliation_status = Column(String, default="UNRECONCILED")  # UNRECONCILED, RECONCILED, EXCEPTION
     created_at = Column(DateTime, server_default=func.now())
     
     entries = relationship("JournalEntry", back_populates="transaction", cascade="all, delete-orphan")
@@ -73,6 +74,29 @@ class Budget(Base):
     
     account = relationship("Account")
     category = relationship("Category")
+
+class ReconciliationReport(Base):
+    __tablename__ = "reconciliation_reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    report_date = Column(DateTime, server_default=func.now())
+    total_drift = Column(Numeric(14, 4), default=0.0000)
+    status = Column(String, default="PENDING")  # PENDING, HAS_EXCEPTIONS, RESOLVED
+    
+    exceptions = relationship("ReconciliationException", back_populates="report", cascade="all, delete-orphan")
+
+class ReconciliationException(Base):
+    __tablename__ = "reconciliation_exceptions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("reconciliation_reports.id"), nullable=False)
+    transaction_id = Column(Integer, ForeignKey("ledger_transactions.id"), nullable=True) # Null if PHANTOM
+    bank_reference = Column(String, nullable=True)
+    mismatch_type = Column(String, nullable=False) # AMOUNT_MISMATCH, MISSING_INTERNAL, MISSING_EXTERNAL (Phantom)
+    resolved = Column(String, default="NO")
+    
+    report = relationship("ReconciliationReport", back_populates="exceptions")
+    transaction = relationship("LedgerTransaction")
 
 # Phase 8: Assets Engine
 class AssetPrice(Base):

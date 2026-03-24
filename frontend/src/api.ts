@@ -57,6 +57,22 @@ export interface Portfolio {
     total_gain: string;
 }
 
+export interface ReconException {
+    id: number;
+    transaction_id: number | null;
+    bank_reference: string | null;
+    mismatch_type: string;
+    resolved: string;
+}
+
+export interface ReconReport {
+    id: number;
+    report_date: string;
+    total_drift: string;
+    status: string;
+    exceptions: ReconException[];
+}
+
 export const api = {
   getQuote: async (source: string, target: string, amount: number): Promise<Quote> => {
     const res = await fetch(`${BASE_URL}/quote?sourceCurrency=${source}&targetCurrency=${target}&amount=${amount}`);
@@ -154,6 +170,27 @@ export const api = {
   getPortfolio: async (account_id: number): Promise<Portfolio> => {
     const res = await fetch(`${BASE_URL}/portfolio?account_id=${account_id}`);
     if (!res.ok) throw new Error('Failed to fetch portfolio');
+    return res.json();
+  },
+
+  // ── Phase 9 Reconciliation ──
+  runReconciliation: async () => {
+    const res = await fetch(`${BASE_URL}/reconcile/run`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to run reconciliation');
+    return res.json();
+  },
+  getReconReports: async (): Promise<ReconReport[]> => {
+    const res = await fetch(`${BASE_URL}/reconcile/reports`);
+    if (!res.ok) throw new Error('Failed to fetch reports');
+    return res.json();
+  },
+  forceReconcile: async (exception_id: number, checking_account_id: number) => {
+    const res = await fetch(`${BASE_URL}/reconcile/force`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exception_id, checking_account_id }),
+    });
+    if (!res.ok) { let err = await res.json().catch(()=>null); throw new Error(err?.detail || 'Failed'); }
     return res.json();
   }
 };
