@@ -74,6 +74,26 @@ export interface ReconReport {
 }
 
 export const api = {
+  requestOtp: async (identifier: string) => {
+    const res = await fetch(`${BASE_URL}/auth/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier }),
+    });
+    if (!res.ok) { let err = await res.json().catch(()=>null); throw new Error(err?.detail || 'Failed to request OTP'); }
+    return res.json();
+  },
+  
+  verifyOtp: async (identifier: string, otp: string) => {
+    const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, otp }),
+    });
+    if (!res.ok) { let err = await res.json().catch(()=>null); throw new Error(err?.detail || 'Invalid OTP'); }
+    return res.json();
+  },
+
   getQuote: async (source: string, target: string, amount: number): Promise<Quote> => {
     const res = await fetch(`${BASE_URL}/quote?sourceCurrency=${source}&targetCurrency=${target}&amount=${amount}`);
     if (!res.ok) throw new Error('Failed to fetch quote');

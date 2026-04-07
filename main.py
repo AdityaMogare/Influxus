@@ -62,6 +62,13 @@ class CreateJarRequest(BaseModel):
     jar_name: str
     currency: str = "USD"
 
+class OTPRequest(BaseModel):
+    identifier: str
+
+class VerifyOTPRequest(BaseModel):
+    identifier: str
+    otp: str
+
 class JarMoveRequest(BaseModel):
     checking_account_id: int
     jar_account_id: int
@@ -83,6 +90,31 @@ class BuyAssetRequest(BaseModel):
 @app.get("/")
 async def root():
     return {"message": "Influxus Ledger is running"}
+
+import random
+
+@app.post("/auth/request-otp")
+async def request_otp(req: OTPRequest):
+    # Generate 6-digit OTP
+    otp = str(random.randint(100000, 999999))
+    # Store in Redis with 5 min (300s) expiry
+    await redis_client.set(f"otp:{req.identifier}", otp, ex=300)
+    print(f"OTP for {req.identifier} is {otp}")
+    # Return OTP for ease of local testing
+    return {"status": "success", "message": "OTP sent", "DEBUG_OTP": otp}
+
+@app.post("/auth/verify-otp")
+async def verify_otp(req: VerifyOTPRequest):
+    stored_otp = await redis_client.get(f"otp:{req.identifier}")
+    if not stored_otp:
+        raise HTTPException(status_code=400, detail="OTP expired or not requested")
+    if stored_otp != req.otp:
+        raise HTTPException(status_code=401, detail="Invalid OTP")
+    
+    # OTP is valid, clear it
+    await redis_client.delete(f"otp:{req.identifier}")
+    
+    return {"status": "success", "message": "Logged in", "token": "mock-jwt-token-123"}
 
 @app.get("/accounts")
 async def get_accounts(db: AsyncSession = Depends(get_db)):

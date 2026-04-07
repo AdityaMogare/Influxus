@@ -6,8 +6,10 @@ import JarsPanel from './components/JarsPanel.tsx'
 import BudgetDashboard from './components/BudgetDashboard.tsx'
 import PortfolioView from './components/PortfolioView.tsx'
 import AuditLog from './components/AuditLog.tsx'
+import Login from './components/Login.tsx'
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeTxId, setActiveTxId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'send' | 'jars' | 'budget' | 'invest' | 'audit'>('send');
 
@@ -18,6 +20,10 @@ function App() {
     { id: 'invest', label: 'Invest' },
     { id: 'audit', label: 'Audit Log' }
   ];
+
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen p-4 sm:p-8 flex flex-col items-center bg-slate-50">
